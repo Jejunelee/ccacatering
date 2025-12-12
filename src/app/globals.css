@@ -1,0 +1,49 @@
+/* src/app/globals.css */
+@import "tailwindcss";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #F8F7F2;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  /* Add your custom fonts here */
+  --font-brisa: var(--font-brisa);
+  --font-din: var(--font-din);
+  --font-romanwood: var(--font-romanwood);
+}
+
+/* Define custom utility classes for your fonts */
+@utility font-brisa {
+  font-family: var(--font-brisa), sans-serif;
+}
+
+@utility font-din {
+  font-family: var(--font-din), sans-serif;
+}
+
+@utility font-romanwood {
+  font-family: var(--font-romanwood), serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #F8F7F2;
+    --foreground: #F8F7F2;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
