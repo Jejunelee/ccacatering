@@ -3,7 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "./components/landing/Header";
 import Footer from "./components/landing/Footer";
-import { brisaFont, dinFont, romanWoodFont } from "@/lib/fonts"; // Import your custom fonts
+import { brisaFont, dinFont, romanWoodFont } from "@/lib/fonts";
+import { AuthProvider } from '@/providers/AuthProvider'; // Add this import
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +35,11 @@ export default function RootLayout({
       ${romanWoodFont.variable}
     `}>
       <body className="antialiased">
-        <Header /> 
-        <main>{children}</main>
-        <Footer />
+        <AuthProvider> {/* Wrap everything with AuthProvider */}
+          <Header /> 
+          <main>{children}</main>
+          <Footer />
+        </AuthProvider>
       </body>
     </html>
   );

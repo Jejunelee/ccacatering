@@ -46,7 +46,7 @@ export default function Options() {
 
             {/* Heading */}
             <h3 className="md:ml-30 text-4xl font-extrabold leading-tight drop-shadow-sm">
-              What are you <br /> looking for?
+              What are you <br /> <span className="font-brisa text-7xl">looking for?</span>
             </h3>
 
             {/* Buttons - CHANGED: Removed md:justify-end to align left */}

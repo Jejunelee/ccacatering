@@ -45,7 +45,7 @@ export default function Header() {
 
   const navItems = [
     { href: "/caterings", label: "Caterings" },
-    { href: "/meal-packages", label: "Meal Packages" },
+    { href: "/ptpm", label: "Meal Packages" },
     { href: "/gifts", label: "Gifts" },
     { href: "/venues", label: "Venues" },
     { 
