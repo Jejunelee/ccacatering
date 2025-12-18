@@ -67,9 +67,8 @@ export default function EditableText({
 
       if (!error && data?.content) {
         setText(data.content);
-      } else if (error) {
-        console.error(`❌ Fetch error [${blockKey}]:`, error);
-      }
+      } 
+      
     } catch (error) {
       console.error(`💥 Fetch exception [${blockKey}]:`, error);
     }
