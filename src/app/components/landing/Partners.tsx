@@ -5,8 +5,6 @@ import Image from 'next/image';
 export default function Partners() {
   const logos = [
     { name: 'Center for Culinary Arts Manila', src: '/partners/1.png', width: 100, height: 75 },
-    { name: 'Baken Philippines', src: '/partners/2.png', width: 100, height: 75 },
-    { name: 'Brevile | High End Kitchen & Cooking Appliances ', src: '/partners/3.png', width: 100, height: 75 },
     { name: 'Asian School of Hospitality Arts', src: '/partners/4.png', width: 100, height: 75 },
   ];
 
@@ -16,7 +14,7 @@ export default function Partners() {
       {/* Header Section */}
       <div className="mb-5 text-center">
         <h2 className="text-[#686868] text-xl md:text-2xl font-bold tracking-wider">
-          Partnered with {' '}
+          Powered by {' '}
           <span className="text-5xl font-brisa bg-gradient-to-r from-[#F68A3A] to-[#f97316] bg-clip-text text-transparent">
             Industry Leaders
           </span>

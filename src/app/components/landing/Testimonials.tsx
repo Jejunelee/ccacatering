@@ -1,6 +1,7 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { Star, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 export default function Testimonials() {
   const testimonials = [
@@ -88,8 +89,8 @@ export default function Testimonials() {
                 key={i}
                 className="flex-shrink-0 w-[380px] mx-4"
               >
-                {/* Card with fixed height */}
-                <div className="mb-12 bg-white p-8 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 group h-[350px] flex flex-col">
+                {/* Card with fixed height - UPDATED WITH ORANGE BORDER ON HOVER */}
+                <div className="mb-12 bg-white p-8 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 group h-[350px] flex flex-col border border-gray-200 hover:border-[#F68A3A]/50">
                   {/* top row: avatar + name + stars */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
@@ -146,6 +147,28 @@ export default function Testimonials() {
             ))}
           </div>
         </div>
+
+        {/* Modern Gallery Button */}
+        <div className="text-center">
+          <Link 
+            href="/gallery" 
+            className="inline-flex items-center justify-center gap-3 group"
+          >
+            {/* Button container - simplified without glow */}
+            <div className="bg-[#F8F7F2] px-4 py-3 rounded-xl border border-gray-200 group-hover:border-[#F68A3A]/50 transition-all duration-300 shadow-sm hover:shadow-md">
+              <div className="flex items-center justify-center gap-3">
+                <span className="text-gray-800 font-medium tracking-wider text-sm uppercase group-hover:text-[#F68A3A] transition-colors duration-300">
+                  View Our Event Gallery
+                </span>
+                <div className="relative">
+                  <ArrowRight className="w-4 h-4 text-gray-600 group-hover:text-[#F68A3A] group-hover:translate-x-1 transition-all duration-300" />
+                  <ArrowRight className="absolute top-0 left-0 w-4 h-4 text-[#F68A3A] opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-300" />
+                </div>
+              </div>
+            </div>
+          </Link>
+    
+        </div>
       </div>
 
       {/* animation */}
@@ -161,15 +184,13 @@ export default function Testimonials() {
         .animate-scroll-testimonials {
           animation: testimonialsScroll 60s linear infinite;
         }
-        .animate-scroll-testimonials:hover {
-        }
         
         /* Custom scrollbar for testimonial text */
         .overflow-y-auto::-webkit-scrollbar {
           width: 3px;
         }
         .overflow-y-auto::-webkit-scrollbar-track {
-          background: #f1f1f1;
+          background: #F8F7F2;
           border-radius: 10px;
         }
         .overflow-y-auto::-webkit-scrollbar-thumb {

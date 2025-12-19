@@ -47,15 +47,15 @@ export default function Header() {
   return (
     <header 
       ref={headerRef}
-      className="w-full bg-[#FAF8F6] py-16 flex flex-col items-center text-center px-4"
+      className="w-full bg-[#FAF8F6] mt-16 flex flex-col items-center text-center px-4"
     >
       {/* Top Title - Animated */}
       <div className={animationClass()}>
         <EditableText
           key="header-title"
-          componentName="gifts-header-section"
+          componentName="event-catering-header-section"
           blockKey="title"
-          defaultText="GIFTS, & GIVEAWAY BASKETS"
+          defaultText="EVENTS & CATERING"
           className="font-romanwood text-3xl sm:text-4xl md:text-5xl tracking-[0.001em] text-[#1A1A1A]"
           tag="h1"
         />
@@ -65,7 +65,7 @@ export default function Header() {
       <div className={animationClass('delay-200')}>
         <EditableText
           key="header-description"
-          componentName="gifts-header-section"
+          componentName="event-catering-header-section"
           blockKey="description"
           defaultText="Whether you're hosting a corporate event, a family gathering, or a personal celebration, Cravings has you covered. Our delectable party trays and convenient packed meals are designed to satisfy every craving and make your event a memorable one."
           className="mt-6 text-gray-600 max-w-2xl leading-relaxed font-din text-base sm:text-lg"
@@ -87,7 +87,7 @@ export default function Header() {
         >
           <EditableText
             key="header-button"
-            componentName="gifts-header-section"
+            componentName="event-catering-header-section"
             blockKey="button_text"
             defaultText="Order Now"
             className="font-din"
@@ -100,18 +100,18 @@ export default function Header() {
       <div className="mt-10 w-full max-w-6xl bg-[#F68A3A] text-white rounded-tl-4xl rounded-tr-xl rounded-br-4xl rounded-bl-xl py-4 px-4 flex flex-col items-center justify-center shadow-md">
         <EditableText
           key="cta-subtitle"
-          componentName="gifts-header-section"
+          componentName="event-catering-header-section"
           blockKey="cta_subtitle"
-          defaultText="Make someone feel special"
+          defaultText="Not sure where to start? Check our"
           className="text-white/90 text-lg font-din"
           tag="p"
         />
 
         <EditableText
           key="cta-title"
-          componentName="gifts-header-section"
+          componentName="event-catering-header-section"
           blockKey="cta_title"
-          defaultText="Get a Cravings Basket"
+          defaultText="Ready-Made Menus"
           className="text-3xl sm:text-4xl md:text-5xl font-bold font-brisa tracking-wide"
           tag="h2"
         />

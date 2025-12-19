@@ -1,5 +1,5 @@
-import Header from '../caterings/components/Header';
-import Body from '../caterings/components/Body';
+import Header from '../catering/components/Header';
+import Body from '../catering/components/Body';
 import Lead from '../components/landing/Lead';
 
 export default function CATERINGS() {

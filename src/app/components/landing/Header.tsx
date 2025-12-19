@@ -44,8 +44,8 @@ export default function Header() {
   }, [isMobileMenuOpen]);
 
   const navItems = [
-    { href: "/caterings", label: "Caterings" },
-    { href: "/ptpm", label: "Meal Packages" },
+    { href: "/catering", label: "Events & Catering" },
+    { href: "/ptpm", label: "Packed Trays" },
     { href: "/gifts", label: "Gifts" },
     { href: "/venues", label: "Venues" },
     { 

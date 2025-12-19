@@ -148,7 +148,7 @@ function MainHeading() {
 
   return (
     <h1 className="text-3xl sm:text-4xl lg:text-5xl text-[#000000] tracking-[0.3em] leading-[0.4]">
-      <div className={`font-romanwood tracking-[0.15em] transition-all duration-1000 ${animateText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ fontWeight: 300 }}>
+      <div className={`font-romanwood tracking-[0.01em] transition-all duration-1000 ${animateText ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ fontWeight: 300 }}>
         <EditableText
           componentName="hero-section"
           blockKey="main_heading_line1"
@@ -158,14 +158,7 @@ function MainHeading() {
         />
         <br />
         <div className="inline-flex items-baseline">
-          <EditableText
-            componentName="hero-section"
-            blockKey="main_heading_line2"
-            defaultText="THAT "
-            className="inline"
-            tag="span"
-          />
-          <span className="relative font-brisa text-8xl ml-3">
+          <span className="relative font-brisa text-8xl">
             <EditableText
               componentName="hero-section"
               blockKey="highlighted_text"
@@ -173,7 +166,7 @@ function MainHeading() {
               className={`text-[#F68A3A] relative z-10 tracking-[-0.001em] transition-all duration-1000 ${animateHighlight ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
               tag="span"
             />
-            <span className={`absolute bottom-1 left-0 h-1 bg-[#F68A3A]/40 -rotate-1 -z-0 transition-all duration-1000 ${animateHighlight ? 'w-full' : 'w-0'}`} />
+            <span />
           </span>
         </div>
       </div>

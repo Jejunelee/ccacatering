@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from '@/providers/AuthProvider';
+import type { Database } from '@/types/supabase'; // Adjust path as needed
+
+type ContentBlock = Database['public']['Tables']['content_blocks']['Row'];
 
 interface EditableTextProps {
   componentName: string;
@@ -29,11 +32,25 @@ export default function EditableText({
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(defaultText);
   const [isSaving, setIsSaving] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const MAX_RETRIES = 2;
 
-  // Debug auth state
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      if (isSaving) {
+        console.log(`🧹 [${blockKey}] Component unmounting during save`);
+      }
+    };
+  }, [isSaving, blockKey]);
+
+  // Combined auth and fetch effect to avoid race conditions
   useEffect(() => {
     console.log(`📊 EditableText [${blockKey}] Auth:`, { 
       isAdmin, 
@@ -41,15 +58,14 @@ export default function EditableText({
       isLoading,
       userId: user?.id?.substring(0, 8)
     });
-  }, [isAdmin, user, isLoading, blockKey]);
+    
+    if (!isLoading) {
+      console.log(`📥 EditableText [${blockKey}] Fetching content...`);
+      fetchContent();
+    }
+  }, [componentName, blockKey, isAdmin, user, isLoading]);
 
-  // Fetch content from Supabase on mount
-  useEffect(() => {
-    console.log(`📥 EditableText [${blockKey}] Fetching content...`);
-    fetchContent();
-  }, [componentName, blockKey]);
-
-  async function fetchContent() {
+  const fetchContent = useCallback(async () => {
     try {
       console.log(`🔍 Fetching from Supabase: ${componentName}.${blockKey}`);
       const { data, error } = await supabase
@@ -57,25 +73,49 @@ export default function EditableText({
         .select('content')
         .eq('component_name', componentName)
         .eq('block_key', blockKey)
-        .single<{ content: string }>();
-
+        .single();
+  
       console.log(`📦 Fetch result [${blockKey}]:`, { 
         data, 
         error: error?.message,
-        hasData: !!data?.content 
+        hasData: !!data 
       });
-
-      if (!error && data?.content) {
-        setText(data.content);
-      } 
+  
+      // Type assertion for data
+      const contentData = data as { content: string } | null;
+      
+      if (!error && contentData?.content) {
+        setText(contentData.content);
+      } else if (error && error.code !== 'PGRST116') {
+        console.warn(`⚠️ [${blockKey}] Fetch error:`, error.message);
+      }
       
     } catch (error) {
       console.error(`💥 Fetch exception [${blockKey}]:`, error);
     }
-  }
+  }, [componentName, blockKey]);
 
   async function saveContent() {
+    // Cancel any pending save timeouts
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    
+    // Prevent multiple saves
+    if (isSaving) {
+      console.log(`🚫 [${blockKey}] Save already in progress`);
+      return;
+    }
+    
     setSaveError(null);
+    
+    // Check retry limit
+    if (retryCount >= MAX_RETRIES) {
+      setSaveError('Maximum retry attempts reached. Please refresh the page.');
+      setIsSaving(false);
+      return;
+    }
     
     if (!text.trim()) {
       console.log(`📝 [${blockKey}] Empty text, skipping save`);
@@ -97,27 +137,22 @@ export default function EditableText({
       return;
     }
 
-    // Set a timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Save timeout after 5 seconds')), 5000);
-    });
-
     try {
       console.log(`🚀 [${blockKey}] Sending to Supabase...`);
-      const savePromise = supabase
-        .from('content_blocks')
-        .upsert({
-          component_name: componentName,
-          block_key: blockKey,
-          content: text,
-          content_type: 'text',
-          updated_at: new Date().toISOString()
-        } as any, {
-          onConflict: 'component_name,block_key'
-        });
-
-      // Race between save and timeout
-      const { data, error } = await Promise.race([savePromise, timeoutPromise]) as any;
+      
+      // FIXED: Properly typed upsert
+      const { data, error } = await supabase
+      .from('content_blocks')
+      .upsert({
+        component_name: componentName,
+        block_key: blockKey,
+        content: text,
+        content_type: 'text',
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      } as any, {  // Type assertion
+        onConflict: 'component_name,block_key'
+      });
       
       console.log(`✅ [${blockKey}] Save response:`, { 
         success: !error, 
@@ -127,20 +162,28 @@ export default function EditableText({
       
       if (error) throw error;
       
-      // Success
+      // Success - reset retry count
+      setRetryCount(0);
       setIsEditing(false);
-      setIsSaving(false);
       console.log(`🎉 [${blockKey}] Edit completed successfully`);
       
     } catch (error: any) {
       console.error(`❌ [${blockKey}] Save error:`, error);
       setSaveError(error.message || 'Failed to save. Please try again.');
+      setRetryCount(prev => prev + 1);
+      
+      // Keep editing mode open on error so user can retry
+    } finally {
       setIsSaving(false);
     }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     console.log(`⌨️ [${blockKey}] Key press:`, e.key);
+    
+    // Prevent handling keys while saving
+    if (isSaving) return;
+    
     if (e.key === 'Enter' && !e.shiftKey && as === 'input') {
       e.preventDefault();
       saveContent();
@@ -150,34 +193,61 @@ export default function EditableText({
       setText(defaultText);
       setIsEditing(false);
       setSaveError(null);
+      setRetryCount(0);
     }
   }
 
   function handleBlur() {
     console.log(`👁️ [${blockKey}] Input blur, isSaving: ${isSaving}, hasError: ${!!saveError}`);
-    if (isEditing && !isSaving && !saveError) {
-      saveContent();
+    
+    // Prevent blur from triggering save if already saving
+    if (isSaving) {
+      console.log(`⏳ [${blockKey}] Save in progress, ignoring blur`);
+      return;
     }
+    
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Add a small delay to allow Enter key to trigger first
+    saveTimeoutRef.current = setTimeout(() => {
+      if (isEditing && !saveError) {
+        saveContent();
+      }
+    }, 150);
   }
 
-  function startEditing(e: React.MouseEvent) {
+  function startEditing(e: React.MouseEvent | React.KeyboardEvent) {
     e.stopPropagation();
     e.preventDefault();
     
-    console.log(`✏️ [${blockKey}] Starting edit, isAdmin: ${isAdmin}`);
+    console.log(`✏️ [${blockKey}] Starting edit, isAdmin: ${isAdmin}, isSaving: ${isSaving}`);
+    
+    // Prevent starting edit while saving
+    if (isSaving) {
+      console.log(`⏳ [${blockKey}] Cannot edit while saving`);
+      return;
+    }
+    
     if (!isAdmin) {
       console.warn(`⛔ [${blockKey}] Edit blocked: not admin`);
       return;
     }
+  
     setIsEditing(true);
     setSaveError(null);
-    setTimeout(() => {
-      if (inputRef.current) {
+    setRetryCount(0); // Reset retry count when starting new edit
+    
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
+      if (inputRef.current && document.activeElement !== inputRef.current) {
         inputRef.current.focus();
         inputRef.current.select();
         console.log(`🎯 [${blockKey}] Input focused`);
       }
-    }, 10);
+    });
   }
 
   // Render the appropriate HTML tag
@@ -203,7 +273,9 @@ export default function EditableText({
             onBlur={handleBlur}
             rows={rows}
             placeholder={placeholder}
-            className={`${className} border-2 border-[#F68A3A] rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:ring-offset-2 w-full ${saveError ? 'border-red-500' : ''}`}
+            className={`${className} border-2 border-[#F68A3A] rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:ring-offset-2 w-full ${
+              saveError ? 'border-red-500' : ''
+            } ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             disabled={isSaving}
           />
         ) : (
@@ -215,92 +287,114 @@ export default function EditableText({
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             placeholder={placeholder}
-            className={`${className} border-2 border-[#F68A3A] rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:ring-offset-2 w-full ${saveError ? 'border-red-500' : ''}`}
+            className={`${className} border-2 border-[#F68A3A] rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:ring-offset-2 w-full ${
+              saveError ? 'border-red-500' : ''
+            } ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             disabled={isSaving}
           />
         )}
         
-        {isSaving && (
-          <div className="absolute -right-24 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F68A3A]"></div>
-            <span className="text-sm text-[#F68A3A] font-medium whitespace-nowrap">
-              Saving...
-            </span>
-          </div>
-        )}
-        
-        {saveError && (
-          <div className="absolute -right-36 top-1/2 transform -translate-y-1/2">
-            <div className="text-sm text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-200 max-w-xs">
-              <div className="font-medium">Save failed</div>
-              <div className="text-xs opacity-80 mt-1">{saveError}</div>
+        {/* Save status and action buttons */}
+        <div className="absolute -right-48 top-1/2 transform -translate-y-1/2 flex items-center space-x-3">
+          {isSaving ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F68A3A]"></div>
+              <span className="text-sm text-[#F68A3A] font-medium whitespace-nowrap">
+                Saving...
+              </span>
+            </div>
+          ) : saveError ? (
+            <div className="flex flex-col items-end space-y-2">
+              <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200 max-w-xs">
+                <div className="font-medium">Save failed</div>
+                <div className="text-xs opacity-80 mt-1">{saveError}</div>
+                <div className="flex space-x-2 mt-2">
+                  <button
+                    onClick={() => {
+                      console.log(`🔄 [${blockKey}] Retrying save...`);
+                      setSaveError(null);
+                      saveContent();
+                    }}
+                    className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => {
+                      setText(defaultText);
+                      setIsEditing(false);
+                      setSaveError(null);
+                      setRetryCount(0);
+                    }}
+                    className="text-xs px-2 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={saveContent}
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors font-medium"
+              >
+                Save
+              </button>
               <button
                 onClick={() => {
-                  console.log(`🔄 [${blockKey}] Retrying save...`);
+                  setText(defaultText);
+                  setIsEditing(false);
                   setSaveError(null);
-                  saveContent();
+                  setRetryCount(0);
                 }}
-                className="text-xs text-blue-600 hover:text-blue-800 mt-1 font-medium"
+                className="px-3 py-1.5 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400 transition-colors font-medium"
               >
-                Retry
+                Cancel
               </button>
-            </div>
-          </div>
-        )}
-        
-        {!isSaving && !saveError && (
-          <div className="absolute -right-24 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
-            Press Enter to save
-          </div>
-        )}
+              <div className="text-xs text-gray-500 whitespace-nowrap">
+                Enter to save
+              </div>
+            </>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Admin view - show text with pencil icon on hover
-  console.log(`👑 [${blockKey}] Rendering admin view, isHovering: ${isHovering}`);
+  // Admin view - show text with always-visible pencil icon
+  console.log(`👑 [${blockKey}] Rendering admin view`);
   return (
-    <div
-      className="relative group inline-block"
-      onMouseEnter={() => {
-        console.log(`🐭 [${blockKey}] Mouse enter`);
-        setIsHovering(true);
-      }}
-      onMouseLeave={() => {
-        console.log(`🐭 [${blockKey}] Mouse leave`);
-        setIsHovering(false);
-      }}
-      onClick={startEditing}
-    >
-      <Tag className={`${className} ${isHovering ? 'cursor-pointer' : ''}`}>
+    <div className="relative group inline-flex items-center gap-2">
+      <Tag className={`${className} cursor-pointer hover:bg-orange-50 transition-colors duration-200 rounded px-1 py-0.5 ${
+        isSaving ? 'opacity-50 cursor-not-allowed' : ''
+      }`}>
         {text}
       </Tag>
       
-      {isHovering && (
-        <div
-          className="absolute -right-8 top-1/2 transform -translate-y-1/2 bg-[#F68A3A] text-white p-1.5 rounded-full hover:bg-[#E5792A] transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-md cursor-pointer"
-          aria-label="Edit text"
-          title="Edit text"
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            console.log(`✏️ [${blockKey}] Pencil clicked`);
-            e.stopPropagation();
+      {/* Always visible edit icon for admin users */}
+      <div
+        className={`bg-[#F68A3A] text-white p-1.5 rounded-full hover:bg-[#E5792A] transition-all duration-200 shadow-md cursor-pointer flex-shrink-0 ${
+          isSaving ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+        aria-label="Edit text"
+        title="Edit text"
+        role="button"
+        tabIndex={0}
+        onClick={startEditing}
+        onKeyDown={(e) => {
+          console.log(`⌨️ [${blockKey}] Pencil key:`, e.key);
+          if ((e.key === 'Enter' || e.key === ' ') && !isSaving) {
+            e.preventDefault();
             startEditing(e);
-          }}
-          onKeyDown={(e) => {
-            console.log(`⌨️ [${blockKey}] Pencil key:`, e.key);
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              startEditing(e as any);
-            }
-          }}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        </div>
-      )}
+          }
+        }}
+        aria-disabled={isSaving}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      </div>
     </div>
   );
 }
