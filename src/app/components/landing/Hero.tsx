@@ -152,7 +152,7 @@ function MainHeading() {
         <EditableText
           componentName="hero-section"
           blockKey="main_heading_line1"
-          defaultText="WE CATER MOMENTS"
+          defaultText=""
           className="block"
           tag="span"
         />
@@ -162,7 +162,7 @@ function MainHeading() {
             <EditableText
               componentName="hero-section"
               blockKey="highlighted_text"
-              defaultText="Matter"
+              defaultText=""
               className={`text-[#F68A3A] relative z-10 tracking-[-0.001em] transition-all duration-1000 ${animateHighlight ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
               tag="span"
             />
@@ -187,7 +187,7 @@ function Description() {
       <EditableText
         componentName="hero-section"
         blockKey="description"
-        defaultText="Celebrating <span class='font-bold text-[#F68A3A] animate-pulse-slow'>30+ years</span> of creating great food and<br />memorable events. <span class='font-bold animate-pulse-slower'>Tailored for you.</span>"
+        defaultText=""
         className="text-lg text-gray-700"
         tag="p"
         as="textarea"
@@ -217,7 +217,7 @@ function CtaButton() {
           <EditableText
             componentName="hero-section"
             blockKey="cta_button_text"
-            defaultText="Get a Quote"
+            defaultText=""
             tag="span"
           />
         </span>
