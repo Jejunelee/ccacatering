@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // Send email using Resend
     const { data, error } = await resend.emails.send({
-      from: 'Cravings Website <onboarding@resend.dev>', // Use Resend's default domain
+      from: 'Cravings Website <wecater@cravingsgroup.com>', // Use Resend's default domain
       to: [yourEmail!], // Your email address
       replyTo: email, // So you can reply directly to the user
       subject: `New Lead: ${name} wants to connect!`,
