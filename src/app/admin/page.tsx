@@ -145,7 +145,7 @@ export default function AdminPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:border-transparent transition-all"
+              className="text-black w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:border-transparent transition-all"
               placeholder="admin@example.com"
               required
               disabled={isSubmitting}
@@ -160,7 +160,7 @@ export default function AdminPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:border-transparent transition-all"
+              className="text-black w-full p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F68A3A] focus:border-transparent transition-all"
               placeholder="••••••••"
               required
               disabled={isSubmitting}

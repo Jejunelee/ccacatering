@@ -313,6 +313,7 @@ export default function Body() {
         .single();
 
       if (error) throw error;
+      
 // Type assertion for data
 const insertedData = data as { id: string };
 
