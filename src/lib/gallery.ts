@@ -59,14 +59,17 @@ export const galleryService = {
     return event;
   },
 
-// Add this to your galleryService object in lib/gallery.ts
-async updateImage(
+  async updateImage(
     imageId: string,
     updates: Partial<EventImage>
   ): Promise<EventImage> {
+    // Create a clean object with only the properties we want to update
+    const cleanUpdates = JSON.parse(JSON.stringify(updates));
+    
     const { data: image, error } = await supabase
       .from('event_images')
-      .update(updates)  // @ts-ignore 
+      // @ts-ignore - Supabase type issue
+      .update(cleanUpdates)
       .eq('id', imageId)
       .select()
       .single();
@@ -76,7 +79,7 @@ async updateImage(
       throw error;
     }
     
-    return image as EventImage;
+    return image;
   },
 
   // Upload image for an event
@@ -130,34 +133,35 @@ async updateImage(
     return image;
   },
 
-  // Delete event image
-  async deleteEventImage(imageId: string): Promise<void> {
+// Delete event image
+async deleteEventImage(imageId: string): Promise<void> {
     // First get the image to know the storage path
     const { data: image, error: fetchError } = await supabase
       .from('event_images')
       .select('image_url')
       .eq('id', imageId)
-      .single();
-
+      .single() as { data: { image_url: string } | null, error: any };
+  
     if (fetchError) throw fetchError;
-
+    if (!image) throw new Error('Image not found');
+  
     // Extract file path from URL
-    const url = new URL(image.image_url); // @ts-ignore - image is not null
+    const url = new URL(image.image_url);
     const path = url.pathname.split('/storage/v1/object/public/gallery-images/')[1];
-
+  
     // Delete from storage
     const { error: storageError } = await supabase.storage
       .from('gallery-images')
       .remove([path]);
-
+  
     if (storageError) throw storageError;
-
+  
     // Delete from database
     const { error: dbError } = await supabase
       .from('event_images')
       .delete()
       .eq('id', imageId);
-
+  
     if (dbError) throw dbError;
   },
 

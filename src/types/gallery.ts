@@ -23,6 +23,10 @@ export interface GalleryEvent {
     display_order: number;
     alt_text?: string;
     created_at: string;
+            // Add these if they exist in your DB:
+            updated_at?: string;
+            is_active?: boolean;
+          
   }
   
   export interface GalleryFilters {
