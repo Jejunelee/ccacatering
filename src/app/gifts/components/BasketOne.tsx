@@ -14,7 +14,7 @@ const CATERING_IMAGES = [
 
 const AUTO_ROTATE_INTERVAL = 5000;
 
-export default function EventCateringSection() {
+export default function BasketOne() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
   const [isInView, setIsInView] = useState(false);
@@ -92,7 +92,7 @@ export default function EventCateringSection() {
           <div className="lg:w-1/2">
             {/* Using EditableImageSlider */}
             <EditableImageSlider 
-              componentName="event-catering-section" 
+              componentName="basket-one-section" 
               aspectRatio="aspect-[4/3]"
               objectFit="cover"
             />
@@ -169,8 +169,8 @@ export default function EventCateringSection() {
               {/* Heading with Roman Wood font - Animated */}
               <div className={animationClass()}>
                 <EditableText
-                  key="event-catering-heading"
-                  componentName="event-catering-section"
+                  key="basket-one-heading"
+                  componentName="basket-one-section"
                   blockKey="heading"
                   defaultText="PARTY TRAYS"
                   className="text-4xl md:text-5xl text-[#F48221] mb-2 md:mb-4 font-romanwood"
@@ -181,8 +181,8 @@ export default function EventCateringSection() {
               {/* Description with DIN font - Animated with delay */}
               <div className={animationClass('delay-200')}>
                 <EditableText
-                  key="event-catering-description"
-                  componentName="event-catering-section"
+                  key="basket-one-description"
+                  componentName="basket-one-section"
                   blockKey="description"
                   defaultText="Cravings Kitchen offers a comprehensive event catering service, transforming your special occasions into unforgettable experiences. From intimate gatherings to grand celebrations, our expert team will curate a personalized menu to suit your taste and budget."
                   className="text-gray-700 text-base md:text-lg mb-6 md:mb-8 leading-relaxed font-din"
@@ -205,8 +205,8 @@ export default function EventCateringSection() {
                   }}
                 >
                   <EditableText
-                    key="event-catering-button"
-                    componentName="event-catering-section"
+                    key="basket-one-button"
+                    componentName="basket-one-section"
                     blockKey="button_text"
                     defaultText="Download Menu PDF"
                     className="font-din"

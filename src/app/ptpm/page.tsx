@@ -1,6 +1,6 @@
 import Header from '../ptpm/components/Header';
-import PartyTrays from '../ptpm/components/PartyTrays';
-import PackedMeals from '../ptpm/components/PackedMeals';
+import PartyTraysSection from '../ptpm/components/PartyTrays';
+import PackedMealsSection from '../ptpm/components/PackedMeals';
 import Lead from '../components/landing/Lead';
 
 export default function PTPM() {
@@ -8,8 +8,8 @@ export default function PTPM() {
     <div className="min-h-screen">
       <main>
         <Header />
-        <PartyTrays />
-        <PackedMeals />
+        <PartyTraysSection />
+        <PackedMealsSection />
         <Lead />
       </main>
     </div>

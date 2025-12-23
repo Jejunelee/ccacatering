@@ -14,7 +14,7 @@ const CATERING_IMAGES = [
 
 const AUTO_ROTATE_INTERVAL = 5000;
 
-export default function EventVenuesSection() {
+export default function PackedMealsSection() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovering, setIsHovering] = useState(false);
   const [isInView, setIsInView] = useState(false);
@@ -94,8 +94,8 @@ export default function EventVenuesSection() {
               {/* Heading with Roman Wood font - Animated */}
               <div className={animationClass()}>
                 <EditableText
-                  key="event-venues-heading"
-                  componentName="event-venues-section"
+                  key="packed-meals-heading"
+                  componentName="packed-meals-section"
                   blockKey="heading"
                   defaultText="PACKED MEALS"
                   className="text-4xl md:text-5xl text-[#F48221] mb-2 md:mb-4 font-romanwood"
@@ -106,8 +106,8 @@ export default function EventVenuesSection() {
               {/* Description with DIN font - Animated with delay */}
               <div className={animationClass('delay-200')}>
                 <EditableText
-                  key="event-venues-description"
-                  componentName="event-venues-section"
+                  key="packed-meals-description"
+                  componentName="packed-meals-section"
                   blockKey="description"
                   defaultText="Our packed meals offer a delicious and hassle-free dining experience. Whether you're on-the-go or simply want a convenient meal at home, our packed meals are the perfect solution."
                   className="text-gray-700 text-base md:text-lg mb-6 md:mb-8 leading-relaxed font-din"
@@ -130,8 +130,8 @@ export default function EventVenuesSection() {
                   }}
                 >
                   <EditableText
-                    key="event-venues-button"
-                    componentName="event-venues-section"
+                    key="packed-meals-button"
+                    componentName="packed-meals-section"
                     blockKey="button_text"
                     defaultText="Download Menu PDF"
                     className="font-din"
@@ -146,7 +146,7 @@ export default function EventVenuesSection() {
           <div className="lg:w-1/2">
             {/* Using EditableImageSlider for the left side */}
             <EditableImageSlider 
-              componentName="event-venues-section" 
+              componentName="packed-meals-section" 
               aspectRatio="aspect-[4/3]"
               objectFit="cover"
             />
