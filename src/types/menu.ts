@@ -20,6 +20,7 @@ export interface MenuSectionDB {
     description: string | null;
     created_at: string;
     updated_at: string;
+    content_text: string;
   }
   
   export interface MenuItemImageDB {

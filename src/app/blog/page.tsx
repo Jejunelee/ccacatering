@@ -5,9 +5,9 @@ import { useState, useEffect } from "react";
 import { Calendar, User, Clock, ArrowRight, Search, Tag, ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 import { getBlogPosts, getBlogCategories, getBlogTags, deleteBlogPost, BlogPost } from "@/lib/blog";
-import BlogAdminToggle from "@/components/blog/BlogAdminToggle";
+import MenuAdminToggle from "@/components/editable/MenuAdminToggle";
 
 const POSTS_PER_PAGE = 6;
 
@@ -124,7 +124,7 @@ export default function BlogPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen py-12">
-        {isAdmin && <BlogAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
+        {isAdmin && <MenuAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
         <div className="max-w-7xl mx-auto px-4">
           <div className="animate-pulse space-y-8">
             {/* Skeleton for hero */}
@@ -153,7 +153,7 @@ export default function BlogPage() {
 
   return (
     <div className="min-h-screen">
-      {isAdmin && <BlogAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
+      {isAdmin && <MenuAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
       
       {/* Hero Section */}
       <div className="relative py-8 md:py-12">

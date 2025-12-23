@@ -5,7 +5,7 @@ import Image from "next/image";
 import Modal from "./Modal";
 import MenuAdminToggle from "../../../components/editable/MenuAdminToggle";
 import { supabase } from "@/lib/supabase";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 import { Plus, GripVertical, Trash2, Edit, Image as ImageIcon } from "lucide-react";
 
 // Define types inline if you don't want a separate types file
@@ -13,11 +13,7 @@ interface MenuItem {
   id: string;
   title: string;
   images: string[];
-  soup?: string;
-  salads?: string;
-  hot?: string;
-  desserts?: string;
-  description?: string;
+  content_text?: string;
   display_order?: number;
   custom_id?: string;
 }
@@ -45,11 +41,7 @@ interface DBMenuItem {
   title: string;
   custom_id: string | null;
   display_order: number;
-  soup: string | null;
-  salads: string | null;
-  hot: string | null;
-  desserts: string | null;
-  description: string | null;
+  content_text: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,7 +65,6 @@ export default function Body() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [newSectionLabel, setNewSectionLabel] = useState("");
-  
 
   // Fetch menu data from Supabase
   const fetchMenuData = async () => {
@@ -126,11 +117,8 @@ export default function Body() {
                 title: item.title,
                 custom_id: item.custom_id || undefined,
                 images: dbImages.map((img) => img.image_url),
-                soup: item.soup || undefined,
-                salads: item.salads || undefined,
-                hot: item.hot || undefined,
-                desserts: item.desserts || undefined,
-                description: item.description || undefined,
+                content_text: item.content_text || undefined,
+                display_order: item.display_order,
               };
             })
           );
@@ -308,14 +296,15 @@ export default function Body() {
           section_id: sectionId,
           title: newItemTitle,
           display_order: section.items.length,
+          content_text: null,
         } as any)
         .select()
         .single();
 
       if (error) throw error;
       
-// Type assertion for data
-const insertedData = data as { id: string };
+      // Type assertion for data
+      const insertedData = data as { id: string };
 
       // Replace optimistic item with real one
       setMenuSections(prev =>
@@ -637,7 +626,7 @@ const insertedData = data as { id: string };
           imageIndex={imageIndex}
           setImageIndex={setImageIndex}
           isEditMode={isEditMode}
-          onUpdate={updateMenuItem} // Pass the update function instead of fetchMenuData
+          onUpdate={updateMenuItem}
         />
       </div>
     </>
@@ -660,7 +649,7 @@ function MenuCardWithControls({
   isAdmin: boolean;
   onOpen: () => void;
   onDelete: (itemId: string) => void;
-  onUpdateTitle: (updatedItem: MenuItem) => void; // Changed type
+  onUpdateTitle: (updatedItem: MenuItem) => void;
 }) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [itemTitle, setItemTitle] = useState(item.title);

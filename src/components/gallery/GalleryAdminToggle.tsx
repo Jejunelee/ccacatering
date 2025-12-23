@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 
 interface GalleryAdminToggleProps {
   isEditMode: boolean;

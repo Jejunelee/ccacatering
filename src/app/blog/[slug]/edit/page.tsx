@@ -6,7 +6,7 @@ import { ArrowLeft, Save, Upload, X, Loader, Image as ImageIcon, Trash2 } from "
 import { updateBlogPostBySlug, getBlogPostBySlugAdmin, isUserAdmin } from "@/lib/blog";
 import { uploadImageToSupabase, isSupabaseImageUrl, deleteImageFromSupabase } from "@/lib/storage";
 import Link from "next/link";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 
 export default function EditBlogPostPage() {
   const router = useRouter();

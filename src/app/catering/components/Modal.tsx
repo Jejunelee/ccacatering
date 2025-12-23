@@ -10,21 +10,23 @@ import {
   Upload, 
   Trash2, 
   Check, 
-  X as XIcon 
+  X as XIcon,
+  Bold,
+  Italic,
+  List,
+  Type,
+  Heading,
+  AlignLeft
 } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 import { supabase } from "@/lib/supabase";
 
 interface MenuItem {
   id: string;
   title: string;
   images: string[];
-  soup?: string;
-  salads?: string;
-  hot?: string;
-  desserts?: string;
-  description?: string;
+  content_text?: string;
   custom_id?: string;
 }
 
@@ -54,18 +56,18 @@ export default function Modal({
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   
-  // Refs for auto-resizing textareas
-  const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  // Refs for the textarea and toolbar
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const ignoreBlurRef = useRef(false);
 
-  // MOVE useCallback HERE - BEFORE any conditional returns
   const saveField = useCallback(async (field: string) => {
-    if (isSaving) return; // Prevent multiple saves
+    if (isSaving) return;
     
     const newValue = editedValues[field as keyof MenuItem];
     const currentValue = localItem?.[field as keyof MenuItem];
     
-    // If value hasn't changed or no localItem, just cancel editing
     if (!localItem || newValue === currentValue || newValue === undefined) {
       setEditingField(null);
       setEditedValues({});
@@ -76,14 +78,12 @@ export default function Modal({
     setSaveError(null);
 
     try {
-      // Optimistic update
       const updatedItem = {
         ...localItem,
         [field]: newValue === "" ? null : newValue
       };
       setLocalItem(updatedItem);
       
-      // Actual database update
       const { error } = await supabase
         .from("menu_items")
         .update({ [field]: newValue === "" ? null : newValue } as never)
@@ -91,23 +91,18 @@ export default function Modal({
 
       if (error) throw error;
 
-      // Notify parent component
       if (onUpdate) {
         onUpdate(updatedItem);
       }
       
-      // Success - clear editing state
       setEditingField(null);
       setEditedValues({});
       
     } catch (err: any) {
       console.error(`Error updating ${field}:`, err);
-      
-      // Revert optimistic update on error
       setLocalItem(item);
       setSaveError(`Failed to save: ${err.message || 'Unknown error'}`);
       
-      // Keep editing mode open on error
       setTimeout(() => {
         setSaveError(null);
       }, 3000);
@@ -131,16 +126,14 @@ export default function Modal({
     };
   }, []);
 
-  // Auto-resize textareas based on content
+  // Auto-resize textarea based on content
   useEffect(() => {
-    if (editingField && textareaRefs.current[editingField]) {
-      const textarea = textareaRefs.current[editingField];
-      if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-      }
+    if (editingField === "content_text" && textareaRef.current) {
+      const textarea = textareaRef.current;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 400)}px`;
     }
-  }, [editingField, editedValues]);
+  }, [editingField, editedValues.content_text]);
 
   if (!localItem) return null;
 
@@ -159,28 +152,29 @@ export default function Modal({
     setEditedValues(prev => ({ ...prev, [field]: value }));
     setSaveError(null);
     
-    // Focus and select text
     setTimeout(() => {
-      const textarea = textareaRefs.current[field];
-      if (textarea) {
-        textarea.focus();
-        textarea.selectionStart = textarea.selectionEnd = textarea.value.length;
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = textareaRef.current.value.length;
       }
     }, 10);
   };
 
   const handleBlur = (field: string) => {
-    // Clear any existing timeout
+    // Don't save if we're clicking on toolbar
+    if (ignoreBlurRef.current) {
+      ignoreBlurRef.current = false;
+      return;
+    }
+    
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    // Don't save if we're already saving or if there's an error
     if (isSaving || saveError) {
       return;
     }
     
-    // Add a small delay to allow Enter key to trigger first
     saveTimeoutRef.current = setTimeout(() => {
       if (editingField === field) {
         saveField(field);
@@ -192,6 +186,65 @@ export default function Modal({
     setEditingField(null);
     setEditedValues({});
     setSaveError(null);
+  };
+
+  // WYSIWYG toolbar functions
+  const formatText = (command: string, value?: string) => {
+    if (!textareaRef.current || editingField !== "content_text") return;
+    
+    // Set flag to ignore blur event
+    ignoreBlurRef.current = true;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    
+    let newText = "";
+    
+    switch (command) {
+      case "bold":
+        newText = `**${selectedText}**`;
+        break;
+      case "italic":
+        newText = `*${selectedText}*`;
+        break;
+      case "heading1":
+        newText = `# ${selectedText}`;
+        break;
+      case "heading2":
+        newText = `## ${selectedText}`;
+        break;
+      case "bullet":
+        if (selectedText) {
+          // Add bullet points to each line
+          newText = selectedText.split('\n').map(line => `• ${line}`).join('\n');
+        } else {
+          newText = "• ";
+        }
+        break;
+      case "newline":
+        newText = "\n\n";
+        break;
+      default:
+        newText = selectedText;
+    }
+    
+    const updatedValue = before + newText + after;
+    setEditedValues(prev => ({ ...prev, content_text: updatedValue }));
+    
+    // Restore focus and selection
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + newText.length;
+      textarea.selectionStart = textarea.selectionEnd = newCursorPos;
+      
+      // Auto-resize
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 400)}px`;
+    }, 10);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,7 +272,6 @@ export default function Modal({
       const fileName = `menu-item-${localItem!.id}-${Date.now()}.${fileExt}`;
       const filePath = `menu-items/${localItem!.id}/${fileName}`;
       
-      // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           if (prev >= 90) {
@@ -273,7 +325,6 @@ export default function Modal({
       
       setUploadProgress(100);
       
-      // Reset progress after success
       setTimeout(() => {
         setUploadProgress(0);
       }, 500);
@@ -282,7 +333,6 @@ export default function Modal({
       console.error('Error uploading image:', error);
       setSaveError(`Upload failed: ${error?.message || 'Unknown error'}`);
       
-      // Clear error after 3 seconds
       setTimeout(() => {
         setSaveError(null);
       }, 3000);
@@ -297,82 +347,155 @@ export default function Modal({
     alert("To fully delete images, we need to implement storage cleanup. For now, contact support.");
   };
 
-  const renderEditableField = (field: string, label: string, value?: string, multiline = false) => {
-    const shouldRender = value || (isEditMode && isAdmin) || editingField === field;
-    if (!shouldRender) return null;
-
-    const displayValue = value || "";
+  const renderRichTextField = () => {
+    const field = "content_text";
+    const displayValue = localItem.content_text || "";
     const isEditing = editingField === field && isEditMode && isAdmin;
     const isFieldSaving = isSaving === field;
 
+    // Simple markdown parser for display
+    const renderFormattedText = (text: string) => {
+      return text
+        .split('\n')
+        .map((line, index) => {
+          // Headings
+          if (line.startsWith('# ')) {
+            return `<h3 class="font-bold text-lg text-gray-800 mb-2">${line.substring(2)}</h3>`;
+          }
+          if (line.startsWith('## ')) {
+            return `<h4 class="font-bold text-base text-gray-700 mb-1">${line.substring(3)}</h4>`;
+          }
+          // Bold
+          let processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>');
+          // Italic
+          processedLine = processedLine.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>');
+          // Bullet points
+          if (line.startsWith('• ')) {
+            return `<div class="flex items-start mb-1"><span class="mr-2">•</span><span>${processedLine.substring(2)}</span></div>`;
+          }
+          // Empty lines
+          if (line.trim() === '') {
+            return '<div class="h-4"></div>';
+          }
+          return `<p class="mb-2">${processedLine}</p>`;
+        })
+        .join('');
+    };
+
     return (
       <div className="mb-6">
-        <div className="flex items-center justify-center mb-3">
-          <div className="bg-gradient-to-r from-[#F08A32] to-amber-500 text-white font-semibold py-1.5 px-6 rounded-full text-sm">
-            {label}
-          </div>
-        </div>
-        
         {isEditing ? (
           <div className="relative">
-            {multiline ? (
-              <textarea
-                ref={(el) => {
-                  textareaRefs.current[field] = el;
-                }}
-                value={editedValues[field as keyof MenuItem] ?? displayValue}
-                onChange={(e) => {
-                  setEditedValues(prev => ({ ...prev, [field]: e.target.value }));
-                  e.target.style.height = 'auto';
-                  e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
-                }}
-                onBlur={() => handleBlur(field)}
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm text-gray-700 resize-none min-h-[60px] break-words ${
-                  saveError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-gray-300 focus:ring-[#F68A3A] bg-gray-50'
-                }`}
-                rows={1}
-                placeholder={`Enter ${label.toLowerCase()}...`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    saveField(field);
-                  }
-                  if (e.key === 'Escape') {
-                    cancelEditing();
-                  }
-                }}
-                disabled={isFieldSaving}
-              />
-            ) : (
-              <input
-                type="text"
-                value={editedValues[field as keyof MenuItem] ?? displayValue}
-                onChange={(e) => setEditedValues(prev => ({ ...prev, [field]: e.target.value }))}
-                onBlur={() => handleBlur(field)}
-                className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm text-gray-700 ${
-                  saveError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-gray-300 focus:ring-[#F68A3A] bg-gray-50'
-                }`}
-                placeholder={`Enter ${label.toLowerCase()}...`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    saveField(field);
-                  }
-                  if (e.key === 'Escape') {
-                    cancelEditing();
-                  }
-                }}
-                disabled={isFieldSaving}
-              />
-            )}
+            {/* WYSIWYG Toolbar */}
+            <div 
+              ref={toolbarRef}
+              className="text-black flex flex-wrap gap-1 mb-2 p-2 bg-gray-50 border border-gray-300 rounded-lg"
+              onMouseDown={(e) => {
+                // Prevent textarea blur when clicking toolbar
+                e.preventDefault();
+              }}
+              onClick={(e) => {
+                // Keep focus on textarea after toolbar click
+                if (textareaRef.current) {
+                  setTimeout(() => {
+                    textareaRef.current?.focus();
+                  }, 0);
+                }
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => formatText("bold")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="Bold"
+              >
+                <Bold className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText("italic")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="Italic"
+              >
+                <Italic className="w-4 h-4" />
+              </button>
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              <button
+                type="button"
+                onClick={() => formatText("heading1")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="Heading 1"
+              >
+                <Heading className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText("heading2")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="Heading 2"
+              >
+                <Type className="w-4 h-4" />
+              </button>
+              <div className="w-px h-6 bg-gray-300 mx-1"></div>
+              <button
+                type="button"
+                onClick={() => formatText("bullet")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="Bullet List"
+              >
+                <List className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => formatText("newline")}
+                className="p-2 rounded hover:bg-gray-200 transition-colors"
+                title="New Line"
+              >
+                <AlignLeft className="w-4 h-4" />
+              </button>
+              <div className="flex-1"></div>
+              <div className="text-xs text-gray-500 px-2 py-1">
+                Use **bold**, *italic*, # Heading
+              </div>
+            </div>
             
-            {/* Error message */}
+            <textarea
+              ref={textareaRef}
+              value={editedValues.content_text ?? displayValue}
+              onChange={(e) => {
+                setEditedValues(prev => ({ ...prev, content_text: e.target.value }));
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 400)}px`;
+              }}
+              onBlur={() => handleBlur(field)}
+              className={`w-full p-4 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-gray-700 resize-none min-h-[200px] break-words leading-relaxed ${
+                saveError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-gray-300 focus:ring-[#F68A3A] bg-gray-50'
+              }`}
+              rows={6}
+              placeholder="Enter content... You can use the toolbar above or type:
+# Heading
+## Subheading
+**Bold text**
+*Italic text*
+• Bullet points"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  saveField(field);
+                }
+                if (e.key === 'Escape') {
+                  cancelEditing();
+                }
+              }}
+              disabled={isFieldSaving}
+            />
+            
             {saveError && isEditing && (
               <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
                 {saveError}
               </div>
             )}
             
-            {/* Action buttons */}
             <div className="flex justify-end mt-2 space-x-2">
               <button
                 onClick={cancelEditing}
@@ -406,124 +529,27 @@ export default function Modal({
             className="relative group cursor-pointer min-h-[24px]"
             onClick={() => isEditMode && isAdmin && !isSaving && startEditing(field, displayValue)}
           >
-            <p className={`text-sm text-gray-700 break-words overflow-wrap-anywhere whitespace-pre-wrap leading-relaxed ${
-              !displayValue && isEditMode && isAdmin ? 'text-gray-400 italic py-2' : 'py-1'
+            <div className={`prose prose-sm max-w-none text-gray-700 break-words overflow-wrap-anywhere whitespace-pre-wrap ${
+              !displayValue && isEditMode && isAdmin ? 'text-gray-400 italic py-8 text-center border-2 border-dashed border-gray-300 rounded-lg' : 'py-2'
             }`}>
-              {displayValue || (isEditMode && isAdmin ? `Click to add ${label.toLowerCase()}...` : '')}
-            </p>
+              {displayValue ? (
+                <div dangerouslySetInnerHTML={{ 
+                  __html: renderFormattedText(displayValue)
+                }} />
+              ) : (
+                isEditMode && isAdmin ? "Click to add content..." : ""
+              )}
+            </div>
             {isEditMode && isAdmin && !isSaving && (
               <button 
-                className="absolute -right-6 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white"
-                title="Edit"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white shadow-md"
+                title="Edit content"
                 onClick={(e) => {
                   e.stopPropagation();
                   startEditing(field, displayValue);
                 }}
               >
-                <Edit className="w-3.5 h-3.5 text-gray-500" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderDescriptionField = () => {
-    const shouldRender = localItem.description || (isEditMode && isAdmin) || editingField === "description";
-    if (!shouldRender) return null;
-
-    const displayValue = localItem.description || "";
-    const isEditing = editingField === "description" && isEditMode && isAdmin;
-    const isFieldSaving = isSaving === "description";
-
-    return (
-      <div className="mb-6 text-center">
-        {isEditing ? (
-          <div>
-            <textarea
-              ref={(el) => {
-                textareaRefs.current.description = el;
-              }}
-              value={editedValues.description ?? displayValue}
-              onChange={(e) => {
-                setEditedValues(prev => ({ ...prev, description: e.target.value }));
-                e.target.style.height = 'auto';
-                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
-              }}
-              onBlur={() => handleBlur("description")}
-              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent text-sm text-gray-700 resize-none min-h-[60px] break-words text-center ${
-                saveError ? 'border-red-300 focus:ring-red-200 bg-red-50' : 'border-gray-300 focus:ring-[#F68A3A] bg-gray-50'
-              }`}
-              rows={1}
-              placeholder="Add a description..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  saveField("description");
-                }
-                if (e.key === 'Escape') {
-                  cancelEditing();
-                }
-              }}
-              disabled={isFieldSaving}
-            />
-            
-            {/* Error message */}
-            {saveError && isEditing && (
-              <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-200">
-                {saveError}
-              </div>
-            )}
-            
-            <div className="flex justify-center mt-2 space-x-2">
-              <button
-                onClick={cancelEditing}
-                disabled={isFieldSaving}
-                className="px-3 py-1.5 text-gray-600 text-sm rounded-lg hover:bg-gray-100 transition-colors flex items-center disabled:opacity-50"
-              >
-                <XIcon className="w-3.5 h-3.5 mr-1" />
-                Cancel
-              </button>
-              <button
-                onClick={() => saveField("description")}
-                disabled={isFieldSaving}
-                className="px-3 py-1.5 bg-gradient-to-r from-[#F68A3A] to-orange-500 text-white text-sm rounded-lg hover:opacity-90 transition-opacity flex items-center disabled:opacity-50"
-              >
-                {isFieldSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent mr-1"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-3.5 h-3.5 mr-1" />
-                    Save
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div 
-            className="relative group cursor-pointer min-h-[24px]"
-            onClick={() => isEditMode && isAdmin && !isSaving && startEditing("description", displayValue)}
-          >
-            <p className={`text-sm text-gray-600 break-words overflow-wrap-anywhere whitespace-pre-wrap italic ${
-              !displayValue && isEditMode && isAdmin ? 'text-gray-400 py-2' : 'py-1'
-            }`}>
-              {displayValue || (isEditMode && isAdmin ? "Click to add description..." : '')}
-            </p>
-            {isEditMode && isAdmin && !isSaving && (
-              <button 
-                className="absolute -right-6 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white"
-                title="Edit description"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startEditing("description", displayValue);
-                }}
-              >
-                <Edit className="w-3.5 h-3.5 text-gray-500" />
+                <Edit className="w-4 h-4 text-gray-600" />
               </button>
             )}
           </div>
@@ -550,7 +576,7 @@ export default function Modal({
         </button>
 
         {/* Title */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">{localItem.title}</h2>
         </div>
 
@@ -570,17 +596,14 @@ export default function Modal({
                     priority
                   />
                   
-                  {/* Overlay gradient */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
                   
-                  {/* Image counter */}
                   {localItem.images.length > 1 && (
                     <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
                       {imageIndex + 1} / {localItem.images.length}
                     </div>
                   )}
                   
-                  {/* Navigation arrows */}
                   {localItem.images.length > 1 && (
                     <>
                       <button
@@ -602,7 +625,6 @@ export default function Modal({
                     </>
                   )}
                   
-                  {/* Delete button */}
                   {isEditMode && isAdmin && localItem.images.length > 0 && (
                     <button
                       onClick={() => deleteImage(imageIndex)}
@@ -679,18 +701,9 @@ export default function Modal({
           </div>
         </div>
 
-        {/* Content Section */}
+        {/* CONTENT SECTION */}
         <div className="px-2">
-          {/* Description */}
-          {renderDescriptionField()}
-
-          {/* Category Sections */}
-          <div className="space-y-6">
-            {renderEditableField("soup", "Soup", localItem.soup, true)}
-            {renderEditableField("salads", "Salads", localItem.salads, true)}
-            {renderEditableField("hot", "Hot Selections", localItem.hot, true)}
-            {renderEditableField("desserts", "Desserts", localItem.desserts, true)}
-          </div>
+          {renderRichTextField()}
         </div>
       </div>
     </div>

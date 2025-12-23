@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthContext } from '@/providers/AuthProvider';
+import { useAuthContext } from '@/providers/useAuth';
 import { signIn, signOut } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
 

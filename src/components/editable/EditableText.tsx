@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useAuthContext } from '@/providers/AuthProvider';
+import { useAuthContext } from '@/providers/useAuth';
+import { saveWithAuthRetry, ensureAuthPersisted } from '@/lib/auth/persist';
 import type { Database } from '@/types/supabase'; // Adjust path as needed
 
 type ContentBlock = Database['public']['Tables']['content_blocks']['Row'];
@@ -16,6 +17,19 @@ interface EditableTextProps {
   as?: 'input' | 'textarea';
   rows?: number;
   placeholder?: string;
+}
+
+// Track pending saves globally to warn users
+declare global {
+  interface Window {
+    pendingSaves?: Set<string>;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  if (!window.pendingSaves) {
+    window.pendingSaves = new Set();
+  }
 }
 
 export default function EditableText({
@@ -38,17 +52,21 @@ export default function EditableText({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const MAX_RETRIES = 2;
 
+  // Add this block ID to pending saves
+  const blockId = `${componentName}.${blockKey}`;
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      if (isSaving) {
-        console.log(`🧹 [${blockKey}] Component unmounting during save`);
+      if (window.pendingSaves?.has(blockId)) {
+        console.log(`🧹 [${blockKey}] Cleanup - removing from pending saves`);
+        window.pendingSaves.delete(blockId);
       }
     };
-  }, [isSaving, blockKey]);
+  }, [isSaving, blockKey, blockId]);
 
   // Combined auth and fetch effect to avoid race conditions
   useEffect(() => {
@@ -95,6 +113,7 @@ export default function EditableText({
     }
   }, [componentName, blockKey]);
 
+  // Enhanced save function with auth persistence
   async function saveContent() {
     // Cancel any pending save timeouts
     if (saveTimeoutRef.current) {
@@ -123,53 +142,76 @@ export default function EditableText({
       return;
     }
 
+    // Track this save globally
+    if (window.pendingSaves) {
+      window.pendingSaves.add(blockId);
+    }
+    
     setIsSaving(true);
     console.log(`💾 [${blockKey}] Saving: "${text.substring(0, 50)}..."`);
     
-    // Check auth before saving
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    console.log(`👤 [${blockKey}] Current user on save:`, currentUser?.email);
-    
-    if (!currentUser) {
-      console.error(`❌ [${blockKey}] No user authenticated!`);
-      setSaveError('Not authenticated. Please log in again.');
-      setIsSaving(false);
-      return;
-    }
-
     try {
-      console.log(`🚀 [${blockKey}] Sending to Supabase...`);
+      // Use the auth-retry wrapper for saving
+      await saveWithAuthRetry(async () => {
+        console.log(`🚀 [${blockKey}] Sending to Supabase...`);
+        
+        // Enhanced auth check with persistence
+        const isAuthReady = await ensureAuthPersisted();
+        if (!isAuthReady) {
+          throw new Error('Authentication session lost. Please stay on the page while saving.');
+        }
+        
+        // Get current session to ensure we have fresh credentials
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          throw new Error('Please refresh the page and log in again.');
+        }
+        
+        console.log(`👤 [${blockKey}] Current user on save:`, session.user?.email);
+        
+        // FIXED: Properly typed upsert
+        const { error } = await supabase
+          .from('content_blocks')
+          .upsert({
+            component_name: componentName,
+            block_key: blockKey,
+            content: text,
+            content_type: 'text',
+            updated_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          } as any, {  // Type assertion
+            onConflict: 'component_name,block_key'
+          });
+        
+        if (error) throw error;
+        
+        return true;
+      }, MAX_RETRIES);
       
-      // FIXED: Properly typed upsert
-      const { data, error } = await supabase
-      .from('content_blocks')
-      .upsert({
-        component_name: componentName,
-        block_key: blockKey,
-        content: text,
-        content_type: 'text',
-        updated_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      } as any, {  // Type assertion
-        onConflict: 'component_name,block_key'
-      });
+      console.log(`✅ [${blockKey}] Save completed successfully`);
       
-      console.log(`✅ [${blockKey}] Save response:`, { 
-        success: !error, 
-        error: error?.message,
-        data 
-      });
-      
-      if (error) throw error;
-      
-      // Success - reset retry count
+      // Success - reset retry count and remove from pending saves
       setRetryCount(0);
+      if (window.pendingSaves) {
+        window.pendingSaves.delete(blockId);
+      }
       setIsEditing(false);
       console.log(`🎉 [${blockKey}] Edit completed successfully`);
       
     } catch (error: any) {
       console.error(`❌ [${blockKey}] Save error:`, error);
-      setSaveError(error.message || 'Failed to save. Please try again.');
+      
+      // Handle specific auth errors
+      let errorMessage = error.message || 'Failed to save. Please try again.';
+      
+      if (error.message?.includes('Authentication session lost') || 
+          error.message?.includes('Please refresh')) {
+        errorMessage = `Authentication issue: ${error.message}. Please stay on the page while saving.`;
+      } else if (error.message?.includes('Not authenticated')) {
+        errorMessage = 'Your session expired. Please refresh the page and log in again.';
+      }
+      
+      setSaveError(errorMessage);
       setRetryCount(prev => prev + 1);
       
       // Keep editing mode open on error so user can retry
@@ -177,6 +219,17 @@ export default function EditableText({
       setIsSaving(false);
     }
   }
+
+  // Improved save with better error handling for blur/enter
+  const handleSave = async () => {
+    if (isSaving) return;
+    
+    try {
+      await saveContent();
+    } catch (error) {
+      console.error(`💥 [${blockKey}] Unexpected save error:`, error);
+    }
+  };
 
   function handleKeyDown(e: React.KeyboardEvent) {
     console.log(`⌨️ [${blockKey}] Key press:`, e.key);
@@ -186,10 +239,13 @@ export default function EditableText({
     
     if (e.key === 'Enter' && !e.shiftKey && as === 'input') {
       e.preventDefault();
-      saveContent();
+      handleSave();
     }
     if (e.key === 'Escape') {
       console.log(`⎋ [${blockKey}] Escape pressed, cancelling edit`);
+      if (window.pendingSaves?.has(blockId)) {
+        window.pendingSaves.delete(blockId);
+      }
       setText(defaultText);
       setIsEditing(false);
       setSaveError(null);
@@ -213,12 +269,14 @@ export default function EditableText({
     
     // Add a small delay to allow Enter key to trigger first
     saveTimeoutRef.current = setTimeout(() => {
-      if (isEditing && !saveError) {
-        saveContent();
+      if (isEditing && !saveError && document.activeElement !== inputRef.current) {
+        console.log(`⏰ [${blockKey}] Blur timeout triggered, saving...`);
+        handleSave();
       }
     }, 150);
   }
 
+  // Enhanced startEditing with auth check
   function startEditing(e: React.MouseEvent | React.KeyboardEvent) {
     e.stopPropagation();
     e.preventDefault();
@@ -235,18 +293,26 @@ export default function EditableText({
       console.warn(`⛔ [${blockKey}] Edit blocked: not admin`);
       return;
     }
-  
-    setIsEditing(true);
-    setSaveError(null);
-    setRetryCount(0); // Reset retry count when starting new edit
     
-    // Use requestAnimationFrame for better timing
-    requestAnimationFrame(() => {
-      if (inputRef.current && document.activeElement !== inputRef.current) {
-        inputRef.current.focus();
-        inputRef.current.select();
-        console.log(`🎯 [${blockKey}] Input focused`);
+    // Check auth before starting edit
+    ensureAuthPersisted().then(isAuthReady => {
+      if (!isAuthReady) {
+        setSaveError('Please refresh the page to restore your session.');
+        return;
       }
+      
+      setIsEditing(true);
+      setSaveError(null);
+      setRetryCount(0); // Reset retry count when starting new edit
+      
+      // Use requestAnimationFrame for better timing
+      requestAnimationFrame(() => {
+        if (inputRef.current && document.activeElement !== inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+          console.log(`🎯 [${blockKey}] Input focused`);
+        }
+      });
     });
   }
 
@@ -301,6 +367,7 @@ export default function EditableText({
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#F68A3A]"></div>
               <span className="text-sm text-[#F68A3A] font-medium whitespace-nowrap">
                 Saving...
+                {retryCount > 0 && ` (Retry ${retryCount}/${MAX_RETRIES})`}
               </span>
             </div>
           ) : saveError ? (
@@ -313,7 +380,7 @@ export default function EditableText({
                     onClick={() => {
                       console.log(`🔄 [${blockKey}] Retrying save...`);
                       setSaveError(null);
-                      saveContent();
+                      handleSave();
                     }}
                     className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
@@ -321,6 +388,9 @@ export default function EditableText({
                   </button>
                   <button
                     onClick={() => {
+                      if (window.pendingSaves?.has(blockId)) {
+                        window.pendingSaves.delete(blockId);
+                      }
                       setText(defaultText);
                       setIsEditing(false);
                       setSaveError(null);
@@ -336,13 +406,16 @@ export default function EditableText({
           ) : (
             <>
               <button
-                onClick={saveContent}
+                onClick={handleSave}
                 className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors font-medium"
               >
                 Save
               </button>
               <button
                 onClick={() => {
+                  if (window.pendingSaves?.has(blockId)) {
+                    window.pendingSaves.delete(blockId);
+                  }
                   setText(defaultText);
                   setIsEditing(false);
                   setSaveError(null);
@@ -358,6 +431,13 @@ export default function EditableText({
             </>
           )}
         </div>
+        
+        {/* Persistence warning */}
+        {isSaving && (
+          <div className="absolute -bottom-8 left-0 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+            ⚠️ Please stay on the page while saving...
+          </div>
+        )}
       </div>
     );
   }

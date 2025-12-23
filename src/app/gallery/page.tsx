@@ -6,10 +6,10 @@ import {
   Plus, Upload, Edit, Trash2, GripVertical 
 } from "lucide-react";
 import Image from "next/image";
-import { useAuthContext } from "@/providers/AuthProvider";
+import { useAuthContext } from "@/providers/useAuth";
 import { galleryService } from "@/lib/gallery";
 import { GalleryEvent } from "@/types/gallery";
-import GalleryAdminToggle from "@/components/gallery/GalleryAdminToggle";
+import MenuAdminToggle from "@/components/editable/MenuAdminToggle";
 import EventModal from "../gallery/EventModal";
 
 const DEFAULT_CATEGORIES = ["All", "Weddings", "Corporate", "Outdoor", "Desserts", "Cocktails"];
@@ -181,7 +181,7 @@ const handleUpdateImageTitle = async (imageId: string, newTitle: string) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {isAdmin && <GalleryAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
+      {isAdmin && <MenuAdminToggle isEditMode={isEditMode} onToggleEditMode={setIsEditMode} />}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with Add Event Button */}

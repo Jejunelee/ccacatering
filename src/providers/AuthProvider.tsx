@@ -1,87 +1,38 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User } from '@supabase/supabase-js';
+import { createContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAdmin: boolean;
+  session: Session | null;
 }
 
-const AuthContext = createContext<AuthContextType>({
+export const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
   isAdmin: false,
+  session: null,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        // 1. Get initial session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          setIsLoading(false);
-          return;
-        }
-
-        // 2. Set user immediately
-        setUser(session?.user ?? null);
-
-        // 3. Check admin status if user exists
-        if (session?.user) {
-          const { data, error: profileError } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single<{ role: 'admin' | 'user' }>();
-          
-          if (!mounted) return;
-          
-          if (profileError) {
-            console.error('Profile fetch error:', profileError);
-            // Even if profile fetch fails, we have a valid session
-            setIsAdmin(false);
-          } else {
-            setIsAdmin(data?.role === 'admin');
-          }
-        } else {
-          setIsAdmin(false);
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    // Run initial auth setup
-    initializeAuth();
-
-    // 4. Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        // Update user state
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Fetch profile for admin check
+    // Function to check and update auth state
+    const updateAuthState = async (session: Session | null) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        try {
+          // Check admin status with retry logic
           const { data, error } = await supabase
             .from('profiles')
             .select('role')
@@ -89,31 +40,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .single<{ role: 'admin' | 'user' }>();
           
           if (error) {
-            console.error('Profile fetch error on auth change:', error);
+            console.error('Error fetching admin status:', error);
             setIsAdmin(false);
           } else {
             setIsAdmin(data?.role === 'admin');
           }
-        } else {
+        } catch (error) {
+          console.error('Error checking admin:', error);
           setIsAdmin(false);
         }
+      } else {
+        setIsAdmin(false);
+      }
+      setIsLoading(false);
+    };
+
+    // Initial session check with better error handling
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        // Note: We don't set isLoading here to avoid UI flickering
-        // Loading is only controlled by the initial check
+        if (error) {
+          console.error('Error getting session:', error);
+          // Try to recover by signing out
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setIsAdmin(false);
+        } else {
+          await updateAuthState(session);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes with debouncing
+    let timeoutId: NodeJS.Timeout;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log(`Auth event: ${event}`);
+        
+        // Debounce rapid state changes
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        timeoutId = setTimeout(async () => {
+          await updateAuthState(session);
+        }, 100);
       }
     );
 
+    // Handle browser visibility changes (tab switching)
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Tab became active, check session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          updateAuthState(session);
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      mounted = false;
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, isLoading, isAdmin, session }}>
       {children}
     </AuthContext.Provider>
   );
 }
-
-export const useAuthContext = () => useContext(AuthContext);
