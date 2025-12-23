@@ -207,23 +207,30 @@ function CtaButton() {
 
   return (
     <div className={`flex flex-col sm:flex-row gap-4 pt-4 transition-all duration-1000 ${animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-      <button 
-        className="group relative bg-gradient-to-r from-[#E5792A] to-[#F48221] text-white px-20 py-3 rounded-2xl text-lg font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden font-din focus:ring-2 focus:ring-orange-300 focus:outline-none animate-shimmer"
-        onClick={() => {
-          console.log("Get a Quote button clicked");
+      <a
+        href="#contact"
+        className="group relative bg-gradient-to-r from-[#E5792A] to-[#F48221] text-white px-20 py-3 rounded-2xl text-lg font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden font-din focus:ring-2 focus:ring-orange-300 focus:outline-none animate-shimmer text-center inline-block no-underline"
+        onClick={(e) => {
+          console.log("Get a Quote button clicked - scrolling to lead form");
+          // Optional: Smooth scroll behavior
+          e.preventDefault();
+          const element = document.getElementById('contact');
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }
         }}
       >
         <span className="relative z-10 transition-colors duration-300 group-hover:text-white">
           <EditableText
             componentName="hero-section"
             blockKey="cta_button_text"
-            defaultText=""
+            defaultText="Get a Quote"
             tag="span"
           />
         </span>
         <div className="absolute inset-0 bg-gradient-to-r from-[#F68A3A] to-[#F48221] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300" />
-      </button>
+      </a>
     </div>
   );
 }

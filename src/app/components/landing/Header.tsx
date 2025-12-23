@@ -8,6 +8,7 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const phoneNumber = "+639958902825";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,6 +43,10 @@ export default function Header() {
       document.body.style.overflow = "unset";
     };
   }, [isMobileMenuOpen]);
+
+  const handlePhoneClick = () => {
+    window.location.href = `tel:${phoneNumber}`;
+  };
 
   const navItems = [
     { href: "/catering", label: "Events & Catering" },
@@ -103,12 +108,6 @@ export default function Header() {
                       className="relative text-gray-600 hover:text-gray-900 text-base font-medium transition-colors duration-300 flex items-center gap-1 px-3 py-2 rounded-lg focus:outline-none focus:ring-0"
                     >
                       <span>{item.label}</span>
-                      {item.hasDropdown && (
-                        <ChevronDown 
-                          size={12} 
-                          className="opacity-60 transition-transform duration-300 group-hover:rotate-180" 
-                        />
-                      )}
                       <span className="absolute inset-0 rounded-lg bg-[#FF7A00]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </Link>
                   </div>
@@ -118,23 +117,24 @@ export default function Header() {
 
             {/* Right Section - Contact and Mobile Menu */}
             <div className="flex items-center space-x-3">
-              <Link
-                href="/contact"
-                className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 hover:shadow-xl hover:shadow-orange-200 hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-0"
-                aria-label="Contact us by phone"
+              {/* Desktop Contact Button - Now triggers phone call */}
+              <button
+                onClick={handlePhoneClick}
+                className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 hover:shadow-xl hover:shadow-orange-200 hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-[#FF7A00]/50"
+                aria-label={`Call us at ${phoneNumber}`}
               >
                 <Phone size={16} className="transition-transform duration-300 hover:scale-110" />
                 <span className="hidden md:inline whitespace-nowrap">Contact Us</span>
-              </Link>
+              </button>
 
-              {/* Mobile Contact Icon */}
-              <Link
-                href="/contact"
-                className="sm:hidden flex items-center justify-center w-9 h-9 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white rounded-full transition-all duration-300 hover:shadow-lg hover:shadow-orange-200 active:scale-95 focus:outline-none focus:ring-0"
-                aria-label="Contact us"
+              {/* Mobile Contact Icon - Now triggers phone call */}
+              <button
+                onClick={handlePhoneClick}
+                className="sm:hidden flex items-center justify-center w-9 h-9 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white rounded-full transition-all duration-300 hover:shadow-lg hover:shadow-orange-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#FF7A00]/50"
+                aria-label={`Call us at ${phoneNumber}`}
               >
                 <Phone size={16} />
-              </Link>
+              </button>
 
               {/* Mobile Menu Button */}
               <button 
@@ -187,40 +187,7 @@ export default function Header() {
                       aria-expanded={activeDropdown === item.href}
                     >
                       <span>{item.label}</span>
-                      <ChevronDown 
-                        size={16} 
-                        className={`transition-transform duration-300 ${
-                          activeDropdown === item.href ? "rotate-180" : ""
-                        }`} 
-                      />
                     </button>
-                    <div className={`overflow-hidden transition-all duration-300 ${
-                      activeDropdown === item.href ? "max-h-40" : "max-h-0"
-                    }`}>
-                      <div className="pb-3 space-y-2 text-left">
-                        <Link 
-                          href={`${item.href}/category-1`}
-                          className="block py-1.5 text-gray-600 hover:text-gray-900 transition-colors duration-300 pl-3 text-sm focus:outline-none focus:ring-0"
-                          onClick={toggleMobileMenu}
-                        >
-                          Category 1
-                        </Link>
-                        <Link 
-                          href={`${item.href}/category-2`}
-                          className="block py-1.5 text-gray-600 hover:text-gray-900 transition-colors duration-300 pl-3 text-sm focus:outline-none focus:ring-0"
-                          onClick={toggleMobileMenu}
-                        >
-                          Category 2
-                        </Link>
-                        <Link 
-                          href={`${item.href}/category-3`}
-                          className="block py-1.5 text-gray-600 hover:text-gray-900 transition-colors duration-300 pl-3 text-sm focus:outline-none focus:ring-0"
-                          onClick={toggleMobileMenu}
-                        >
-                          Category 3
-                        </Link>
-                      </div>
-                    </div>
                   </>
                 ) : (
                   <Link
@@ -237,25 +204,24 @@ export default function Header() {
 
           {/* Mobile Contact CTA */}
           <div className="mt-6 pt-6 border-t border-gray-200">
-            <Link
-              href="/contact"
-              className="flex items-center justify-center space-x-2 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white w-full py-3 rounded-lg text-sm font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-orange-200 active:scale-95 focus:outline-none focus:ring-0"
-              onClick={toggleMobileMenu}
+            <button
+              onClick={handlePhoneClick}
+              className="flex items-center justify-center space-x-2 bg-gradient-to-r from-[#FF7A00] to-[#FF9500] text-white w-full py-3 rounded-lg text-sm font-semibold transition-all duration-300 hover:shadow-lg hover:shadow-orange-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#FF7A00]/50"
             >
               <Phone size={18} />
               <span>Contact Us Now</span>
-            </Link>
+            </button>
             
-            {/* Mobile Contact Info */}
+            {/* Mobile Contact Info - Updated with new phone number */}
             <div className="mt-4 space-y-2 text-left text-gray-600">
               <p className="text-xs">Need immediate assistance?</p>
-              <a 
-                href="tel:+1234567890" 
-                className="block text-[#FF7A00] font-semibold text-base hover:text-[#FF9500] transition-colors duration-300 focus:outline-none focus:ring-0"
+              <button
+                onClick={handlePhoneClick}
+                className="block text-[#FF7A00] font-semibold text-base hover:text-[#FF9500] transition-colors duration-300 focus:outline-none focus:ring-0 text-left"
               >
-                +1 (234) 567-890
-              </a>
-              <p className="text-xs">Mon-Fri: 8AM-6PM EST</p>
+                {phoneNumber}
+              </button>
+              <p className="text-xs">Call us anytime</p>
             </div>
           </div>
         </div>

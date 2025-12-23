@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CCA Catering",
-  description: "We Cater",
+  title: "Cravings Catering",
+  description: "Over 30 years of experience in delivering crave-worthy food and personalized service.",
 };
 
 export default function RootLayout({
